@@ -1,0 +1,493 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Laura Boyd × Red Bull</title>
+<meta name="description" content="An application to be Red Bull’s Social Media Manager, with wings.">
+<style>
+  :root { --ink:#000; --paper:#fff; --mute:#8a8a8a; --wash:#f3f3f3; --gutter:clamp(20px,5vw,72px); }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  html, body { background:var(--paper); }
+  body {
+    color:var(--ink);
+    font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;
+    font-weight:700; letter-spacing:-.035em; line-height:.98;
+    -webkit-font-smoothing:antialiased; overflow-x:hidden;
+  }
+  a { color:inherit; }
+
+  /* chrome */
+  .progress { position:fixed; top:0; left:0; height:3px; width:100%; background:var(--ink); transform-origin:0 50%; transform:scaleX(0); z-index:50; }
+  .tag { position:fixed; top:20px; left:var(--gutter); font-size:13px; font-weight:500; letter-spacing:0; z-index:40; }
+  .tag.r { left:auto; right:var(--gutter); }
+
+  .sign {
+    position:fixed; top:64px; left:50%; z-index:45; transform:translateX(-50%);
+    background:var(--ink); color:var(--paper); border-radius:999px;
+    padding:.7em 1.3em .75em; font-size:clamp(14px,1.5vw,18px); font-weight:500; letter-spacing:-.01em;
+    display:flex; gap:.7em; align-items:center; white-space:nowrap;
+    transition:opacity .5s, transform .5s;
+  }
+  .sign b { display:inline-block; animation:bob 1.2s ease-in-out infinite; font-weight:500; }
+  .sign.gone { opacity:0; transform:translate(-50%,-20px); pointer-events:none; }
+  @keyframes bob { 0%,100% { transform:translateY(-2px); } 50% { transform:translateY(4px); } }
+
+  /* scroll track + stage */
+  #track { width:1px; }
+  /* the "drum": every beat sits on a rotating column; only ±2 neighbours are visible, fading out */
+  #stage { position:fixed; inset:0; overflow:hidden; perspective:1600px; perspective-origin:50% 50%; }
+  .step {
+    position:absolute; left:0; right:0; top:50%; padding:0 var(--gutter);
+    opacity:0; visibility:hidden; pointer-events:none; will-change:transform,opacity;
+    transform-origin:50% 50%; backface-visibility:hidden;
+  }
+  .step.on { pointer-events:auto; }
+  .inner { width:100%; max-width:1400px; margin:0 auto; display:grid; gap:clamp(20px,4vw,64px); align-items:center; }
+  .inner.has-img { grid-template-columns:1.4fr 1fr; }
+  .step[data-side] .txt { max-width:68%; transition:transform .9s cubic-bezier(.2,.7,.2,1); }
+  .step[data-side="r"] .txt { margin-left:auto; text-align:right; transform:translateX(5vw); }
+  .step[data-side="l"] .txt { transform:translateX(-5vw); }
+  .step[data-side].on .txt { transform:none; }
+  .step[data-side="r"] .txt p { margin-left:auto; }
+  @media (max-width:760px) { .step[data-side] .txt { max-width:100%; } }
+  .txt > * + * { margin-top:clamp(14px,2vw,28px); }
+
+  .huge { font-size:clamp(44px,9vw,160px); line-height:.92; }
+  .big  { font-size:clamp(32px,5.6vw,100px); }
+  .mid  { font-size:clamp(24px,3.6vw,62px); }
+  .small{ font-size:clamp(17px,1.9vw,28px); font-weight:500; letter-spacing:-.02em; line-height:1.2; max-width:40ch; }
+  .mute { color:var(--mute); }
+  .sky { position:relative; width:100%; height:clamp(120px,30vh,300px); }
+  .plane { position:absolute; left:0; top:0; height:100%; width:auto; aspect-ratio:1000/220; will-change:transform; overflow:visible; }
+  .plane path, .plane circle, .plane ellipse, .plane line { stroke:#000; stroke-width:3.2; stroke-linecap:round; stroke-linejoin:round; fill:#fff; }
+  .plane .nf { fill:none; }
+  .plane text { font-family:"Caveat","Bradley Hand","Segoe Script",cursive; font-weight:600; fill:#000; stroke:none; font-size:64px; }
+  .plane .bob { animation:bob 2.4s ease-in-out infinite; }
+  .plane .flap { animation:flap 1.1s ease-in-out infinite; transform-origin:640px 118px; transform-box:view-box; }
+  .plane .prop { animation:prop .12s linear infinite; transform-origin:962px 125px; transform-box:view-box; }
+  @keyframes bob { 50% { transform:translateY(8px); } }
+  @keyframes flap { 50% { transform:skewY(2.5deg); } }
+  @keyframes prop { 50% { transform:scaleY(.25); } }
+
+
+  /* visual beats */
+  .ul { background:linear-gradient(#000,#000) 0 94%/0 .07em no-repeat; transition:background-size .9s .35s cubic-bezier(.6,0,.2,1); }
+  .step.on .ul { background-size:100% .07em; }
+  .clogo { display:block; height:clamp(40px,4.6vw,64px); width:auto; }
+  .art.vis { width:min(100%,360px); }
+  .sk, .sk * { stroke:#000; stroke-width:3.2; stroke-linecap:round; stroke-linejoin:round; fill:#fff; }
+  .sk .nf { fill:none; }
+  .sk text { font-family:"Caveat","Bradley Hand",cursive; font-weight:600; stroke:none; fill:#000; }
+  .sk { width:100%; height:auto; max-height:34vh; overflow:visible; }
+  .hd { position:relative; width:min(100%,360px,31vh); margin:0 auto; padding-top:30%; }
+  .art .hd img { display:block; width:100%; height:auto; max-height:none; box-shadow:none; border-radius:0; }
+  .art .hd .hd-c { position:absolute; top:0; left:10%; width:80%; mix-blend-mode:multiply; transform-origin:50% 60%; }
+  .step.on .hd .hd-c { animation:storm 1.6s ease-in-out infinite; }
+  @keyframes storm { 0%,100% { transform:translate(0,0) rotate(-2.5deg); } 25% { transform:translate(8px,-6px) rotate(1.5deg); } 50% { transform:translate(-4px,4px) rotate(2.5deg); } 75% { transform:translate(-9px,-4px) rotate(-1deg); } }
+  .cloud { transform-origin:50% 50%; }
+  .step.on .cloud { animation:wob 1.4s ease-in-out infinite; }
+  @keyframes wob { 50% { transform:translate(4px,-5px) rotate(2deg); } }
+  .receipt { font-family:"SF Mono",Menlo,Consolas,monospace; font-size:clamp(11px,1.15vw,15px); line-height:1.7; background:#fff; color:#000; padding:1.4em 1.4em 1.8em; text-transform:uppercase;
+    box-shadow:0 18px 40px -22px rgba(0,0,0,.45); transform:rotate(2.2deg); clip-path:inset(0 0 100% 0); transition:clip-path 1.8s steps(16); position:relative; width:min(100%,300px); margin:0 auto; }
+  .step.on .receipt { clip-path:inset(0); }
+  .receipt hr { border:0; border-top:2px dashed #000; margin:.6em 0; }
+  .receipt .r { display:flex; justify-content:space-between; gap:1em; }
+  .receipt .c { text-align:center; font-weight:700; }
+  .stamps { display:flex; flex-wrap:wrap; gap:1.2vw; justify-content:center; max-width:360px; margin:0 auto; }
+  .stamp { font-weight:800; letter-spacing:.06em; font-size:clamp(13px,1.5vw,20px); text-transform:uppercase; border:3px solid #000; outline:2px solid #000; outline-offset:3px; padding:.5em .8em; border-radius:6px;
+    opacity:0; transform:scale(1.8) rotate(var(--r)); transition:opacity .25s,transform .35s cubic-bezier(.3,1.6,.5,1); }
+  .stamp.round { border-radius:50%; padding:1.1em 1em; }
+  .step.on .stamp { opacity:1; transform:scale(1) rotate(var(--r)); }
+  .step.on .stamp:nth-child(1){transition-delay:.15s} .step.on .stamp:nth-child(2){transition-delay:.4s} .step.on .stamp:nth-child(3){transition-delay:.65s} .step.on .stamp:nth-child(4){transition-delay:.9s} .step.on .stamp:nth-child(5){transition-delay:1.15s}
+
+  .lblwrap { text-align:center; }
+  .lblwrap .lbl { position:relative; display:inline-block; font-weight:700; letter-spacing:-.02em; font-size:clamp(16px,1.8vw,26px); padding:.5em .9em; border:2.5px solid #000; border-radius:6px; background:#fff; transform:rotate(-2deg); color:#000; }
+  .lblwrap .lbl i { position:absolute; left:-4%; top:52%; height:3px; width:0; background:#000; transition:width .6s .5s ease-out; transform:rotate(-2deg); }
+  .step.on .lblwrap .lbl i { width:108%; }
+  .chips { display:flex; flex-wrap:wrap; gap:.6em; justify-content:center; margin-top:1.4em; }
+  .chips b { font-size:clamp(13px,1.3vw,18px); font-weight:700; letter-spacing:-.01em; padding:.45em .85em; border-radius:99px; background:#000; color:#fff; opacity:0; transform:scale(.4) rotate(var(--r,0deg)); transition:opacity .25s,transform .4s cubic-bezier(.3,1.7,.5,1); }
+  .chips b:nth-child(odd) { --r:-4deg; } .chips b:nth-child(even) { --r:3deg; background:#fff; color:#000; border:2px solid #000; }
+  .step.on .chips b { opacity:1; transform:scale(1) rotate(var(--r)); }
+  .step.on .chips b:nth-child(1){transition-delay:1.1s} .step.on .chips b:nth-child(2){transition-delay:1.3s} .step.on .chips b:nth-child(3){transition-delay:1.5s} .step.on .chips b:nth-child(4){transition-delay:1.7s} .step.on .chips b:nth-child(5){transition-delay:1.9s} .step.on .chips b:nth-child(6){transition-delay:2.1s}
+  .stat { background:#000; color:#fff; border-radius:8px; padding:clamp(18px,2.4vw,36px); transform:rotate(-2deg); box-shadow:0 18px 40px -22px rgba(0,0,0,.45); }
+  .stat b { display:block; font-size:clamp(34px,4.4vw,72px); line-height:.95; letter-spacing:-.04em; }
+  .stat b + b { margin-top:.35em; color:#bbb; }
+  .stat small { display:block; margin-top:1em; font-size:clamp(12px,1.1vw,15px); color:#999; letter-spacing:0; }
+  .tk { display:inline-block; width:1.1em; height:1.1em; vertical-align:-.2em; margin-right:.35em; }
+  .tk path { fill:none; stroke:#000; stroke-width:4; stroke-linecap:round; stroke-linejoin:round; }
+  .num  { font-size:14px; font-weight:500; letter-spacing:0; color:var(--mute); }
+
+  /* image slots — swap each for the real thing */
+  .imgs { display:grid; gap:clamp(10px,1.6vw,22px); }
+  .imgs.n3 { grid-template-columns:repeat(3,1fr); }
+  .ph { position:relative; background:var(--wash); border-radius:4px; display:flex; align-items:flex-end; padding:12px 14px;
+        font-size:12px; font-weight:500; letter-spacing:0; color:var(--mute); overflow:hidden; aspect-ratio:4/5; max-height:62vh; }
+  .ph::before { content:""; position:absolute; inset:9px; border:1px dashed #c9c9c9; border-radius:2px; }
+  .ph span { position:relative; }
+  .ph img { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
+  .ph svg { position:absolute; inset:0; margin:auto; width:55%; height:65%; stroke:#bdbdbd; fill:none; stroke-width:1.5; stroke-linecap:round; }
+  .art { margin:0 auto; width:fit-content; max-width:100%; }
+  .art video { aspect-ratio:9/16; object-fit:cover; background:#eee; }
+  .art img, .art video { display:block; max-width:100%; max-height:58vh; width:auto; height:auto; border-radius:3px; box-shadow:0 18px 40px -22px rgba(0,0,0,.45); }
+  .stackimg .art { margin:0; }
+  .stackimg .art img { max-height:44vh; }
+  .art.embed { width:min(100%,340px); }
+  .art.tt { width:min(100%,330px); } .art.tt blockquote { margin:0 auto; max-width:325px; min-width:0 !important; }
+  .art.tt blockquote, .art.tt iframe { height:min(60vh,700px) !important; max-height:60vh; }
+  .ttl { display:block; margin-top:.8em; font-size:14px; font-weight:500; text-align:center; color:var(--mute); text-decoration:underline; }
+  .art.embed iframe { display:block; width:100%; height:min(62vh,580px); border:1px solid #e3e3e3; border-radius:6px; background:#fff; }
+  .art.plain img { box-shadow:none; border-radius:0; max-height:min(52vh,260px); }
+  .art figcaption { margin-top:8px; font-size:10px; font-weight:500; letter-spacing:.01em; color:var(--mute); }
+  .tilt-a { transform:rotate(-2.5deg); } .tilt-b { transform:rotate(2deg); }
+  .imgs.n3 .ph:nth-child(2) { margin-top:6vh; }
+
+  /* speech bubbles: the "a beer is…" moment pops out of the vertical flow */
+  .bubbles > p { margin-bottom:2vh; }
+  .bubarea { position:relative; width:100%; height:min(64vh,640px); }
+  .bub { position:absolute; left:var(--x); top:var(--y); max-width:min(46%,520px); padding:.5em .85em .58em;
+         border:3px solid #000; border-radius:26px; background:#fff; color:#000;
+         font-size:clamp(18px,2.7vw,40px); line-height:1.08; letter-spacing:-.025em;
+         opacity:0; transform:scale(.15) rotate(var(--r)); transform-origin:30% 100%;
+         transition:transform .6s cubic-bezier(.34,1.75,.5,1), opacity .18s ease; }
+  .bub.in { opacity:1; transform:scale(1) rotate(var(--r)); }
+  .bub.dark { background:#000; color:#fff; }
+  .bub::after { content:""; position:absolute; bottom:-12px; left:34px; width:20px; height:20px; background:inherit;
+                border-right:3px solid #000; border-bottom:3px solid #000; border-radius:0 0 6px 0; transform:rotate(45deg); }
+  .bub:nth-child(even)::after { left:auto; right:34px; }
+  @media (max-width:760px) { .bub { left:var(--mx); top:var(--my); max-width:74%; } .bubarea { height:68vh; } }
+  @media (prefers-reduced-motion:reduce) { .bub { transition:none; } }
+
+  /* "my job" section: the story turns sideways. Vertical scroll drives a horizontal track of cards */
+  .step.hsstep { padding:0; }
+  .hs { position:relative; width:100%; overflow:hidden; padding:2vh 0 8vh; }
+  .hs-track { display:flex; align-items:center; gap:clamp(16px,3vw,48px); padding:0 12vw 0 var(--gutter); width:max-content; will-change:transform; }
+  .hs-card { flex:0 0 auto; width:min(30vw,280px); height:min(52vh,430px); border:3px solid #000; border-radius:28px; background:#fff;
+             padding:clamp(14px,1.5vw,22px); border-radius:22px; display:flex; flex-direction:column; justify-content:space-between; transform-origin:50% 70%; will-change:transform; }
+  .hs-card.dark { background:#000; color:#fff; }
+  .hs-card .n { font-size:clamp(14px,1.4vw,18px); font-weight:500; letter-spacing:0; opacity:.55; }
+  .hs-card p { font-size:clamp(18px,1.9vw,29px); line-height:1.06; }
+  .hs-card.long p { font-size:clamp(16px,1.55vw,23px); }
+  .hs-card.split { width:min(70vw,720px); }
+  .hs-card.split { flex-direction:row; gap:clamp(16px,3vw,40px); }
+  .hs-card.split .col { flex:1; display:flex; flex-direction:column; justify-content:space-between; }
+  .hs-card video { height:100%; aspect-ratio:9/16; object-fit:cover; border-radius:14px; align-self:stretch; background:#eee; }
+  .hs-card.intro { width:min(40vw,500px); height:auto; border:0; background:none; padding:0; justify-content:center; }
+  .hs-card.intro p { font-size:clamp(30px,4.6vw,76px); line-height:.98; }
+  .hs-bar { position:absolute; left:var(--gutter); right:var(--gutter); bottom:2vh; height:3px; background:#e4e4e4; }
+  .hs-bar i { display:block; height:100%; background:#000; transform-origin:0 50%; transform:scaleX(0); }
+  .hs-count { position:absolute; right:var(--gutter); bottom:calc(2vh + 12px); font-size:14px; font-weight:500; letter-spacing:0; }
+  @media (max-width:760px) {
+    .hs-card { width:56vw; height:min(50vh,420px); }
+    .hs-card p { font-size:clamp(16px,4.4vw,22px); }
+    .hs-card.long p { font-size:clamp(14px,3.8vw,18px); }
+    .hs-card.intro { width:78vw; }
+    .hs-card.split { flex-direction:column; }
+    .hs-card video { height:18vh; width:100%; aspect-ratio:auto; }
+  }
+
+  /* annotated photos: handwritten notes + hand-drawn arrows laid over the picture */
+  .photo-beat { justify-items:center; }
+  .photo { position:relative; margin:0 auto; height:min(66vh,680px,calc((100vw - 2 * var(--gutter)) * 1.3333)); aspect-ratio:var(--ar,3/4);
+           container-type:size; border-radius:4px; background:#222; transform:rotate(var(--rot,-1.2deg)); box-shadow:0 22px 50px -24px rgba(0,0,0,.55); }
+  .photo img { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; border-radius:4px; }
+  .note { position:absolute; font-family:"Caveat","Bradley Hand","Segoe Script","Comic Sans MS",cursive; font-weight:600; color:#fff;
+          font-size:var(--fs,6cqw); line-height:1.02; letter-spacing:0; text-shadow:0 1px 6px rgba(0,0,0,.5); transform:rotate(var(--r,-2deg)); white-space:nowrap; }
+  .arr { position:absolute; width:11cqw; height:auto; fill:none; stroke:#fff; stroke-width:3.2; stroke-linecap:round; stroke-linejoin:round; filter:drop-shadow(0 1px 4px rgba(0,0,0,.5)); }
+  .arr.down { transform:rotate(180deg); }
+  .note.dark { color:#000; text-shadow:0 0 8px rgba(255,255,255,.85); }
+  .arr.dark { stroke:#000; filter:drop-shadow(0 0 4px rgba(255,255,255,.85)); }
+
+  /* "beyond social": three overlapping circles, one lit at a time, with the story beside them */
+  .inner.vn { grid-template-columns:1.1fr 1fr; align-items:center; }
+  .vtxt > p { margin-bottom:2.5vh; }
+  .vlist { position:relative; min-height:clamp(160px,26vh,260px); }
+  .vi { position:absolute; left:0; top:0; width:100%; opacity:0; transform:translateY(24px); transition:opacity .45s ease, transform .55s cubic-bezier(.2,.7,.2,1); }
+  .vi.on { opacity:1; transform:none; }
+  .vi .t { font-size:clamp(30px,4.4vw,72px); line-height:1; }
+  .vi .d { font-size:clamp(17px,1.9vw,28px); font-weight:500; letter-spacing:-.02em; line-height:1.2; color:var(--mute); margin-top:.7em; max-width:30ch; }
+  .vd { position:relative; width:min(44vw,60vh,520px); aspect-ratio:1; margin:0 auto; }
+  .vc { position:absolute; width:58%; aspect-ratio:1; border-radius:50%; border:3px solid #000; background:rgba(0,0,0,.05); mix-blend-mode:multiply;
+        opacity:0; transform:scale(.5); transition:opacity .3s ease, transform .65s cubic-bezier(.34,1.6,.5,1), background .3s ease; }
+  .vc.in { opacity:1; transform:scale(1); }
+  .vc.act { background:#000; }
+  .vc span { position:absolute; left:var(--lx); top:var(--ly); transform:translate(-50%,-50%); font-size:clamp(12px,1.5vw,20px); font-weight:700; letter-spacing:-.02em; color:#000; transition:color .3s; white-space:nowrap; }
+  .vc.act span { color:#fff; }
+  .vme { position:absolute; left:50%; top:55%; transform:translate(-50%,-50%) scale(.4); opacity:0; background:#000; color:#fff; border-radius:999px;
+         padding:.22em .7em .3em; font-size:clamp(14px,1.8vw,24px); font-weight:700; transition:opacity .3s ease, transform .55s cubic-bezier(.34,1.6,.5,1); }
+  .vme.on { opacity:1; transform:translate(-50%,-50%) scale(1); }
+  @media (max-width:760px) { .inner.vn { grid-template-columns:1fr; gap:2vh; } .vd { width:min(62vw,34vh); } .vlist { min-height:130px; } .vi .t { font-size:clamp(26px,8vw,40px); } .vi .d { font-size:16px; } }
+  @media (prefers-reduced-motion:reduce) { .vi, .vc, .vme { transition:none; } }
+
+  /* closing */
+  a.mail { font-size:clamp(22px,3.6vw,56px); text-decoration:none; border-bottom:3px solid var(--ink); display:inline-block; }
+  .btn { display:inline-flex; align-items:center; gap:.4em; background:var(--ink); color:var(--paper); text-decoration:none;
+         padding:.3em .65em .38em; border-radius:999px; font-size:clamp(26px,4.4vw,64px); transition:transform .3s cubic-bezier(.2,.7,.2,1); }
+  .btn:hover { transform:scale(1.03); }
+  .btn b { display:inline-block; transition:transform .3s; } .btn:hover b { transform:translateX(.12em) rotate(-12deg); }
+
+  @media (max-width:760px) {
+    .inner.has-img { grid-template-columns:1fr; }
+    .ph { max-height:34vh; aspect-ratio:16/10; }
+    .imgs.n3 .ph { aspect-ratio:3/4; max-height:30vh; }
+    .imgs.n3 .ph:nth-child(2) { margin-top:3vh; }
+    .tag { font-size:12px; }
+  }
+  @media (prefers-reduced-motion:reduce) {
+    .sign b { animation:none; }
+  }
+</style>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@600&display=swap" rel="stylesheet">
+</head>
+<body>
+<div class="progress" id="progress"></div>
+<div class="tag">Laura Boyd</div>
+<div class="tag r">→ Red Bull</div>
+<div class="sign" id="sign">Start scrolling now <b>↓</b></div>
+
+<div id="stage"></div>
+<div id="track"></div>
+
+<script>
+(function () {
+  var reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  /* ---------- the story: one beat on screen at a time ----------
+     t: text html (classes set size)  |  img: [labels]  |  w: scroll weight  */
+  var T = function (cls, html) { return '<p class="' + cls + '">' + html + '</p>'; };
+  var phrases = [
+    "a reason to stop scrolling.",
+    "a “wait, send this to Sam.”",
+    "a hook in the first second.",
+    "a comment section that’s actually fun.",
+    "a thing people screenshot.",
+    "a reason to hit follow.",
+    "a “how did they get that approved?”",
+    "a moment people remember."
+  ];
+  var jobs = [
+    "leading 8+ creatives and 4 marketers across four time zones, with kind, clear, honest feedback.",
+    "planning content ahead and owning complex, ever-changing budgets.",
+    "dreaming up a PR stunt and getting it on social… within 4 weeks.",
+    "explaining to executives that, actually, memes <u style='text-underline-offset:.1em;text-decoration-thickness:.06em'>are</u> a content strategy that leads to brand love.",
+    "reading the numbers weekly in Meltwater, Sprout and Sprinklr, with Claude to speed up the digging."
+  ];
+
+  var TICK = '<svg class="tk" viewBox="0 0 24 24"><path d="M3 13 L9 19 L21 4"/></svg>';
+  var ARR = function (pos, cls) { return '<svg class="arr ' + cls + '" style="' + pos + '" viewBox="0 0 50 64" aria-hidden="true"><path d="M14 62C4 44 40 40 26 10M12 24L26 8L40 22"/></svg>'; };
+  var NOTE = function (pos, html, cls) { return '<span class="note ' + (cls || "") + '" style="' + pos + '">' + html + '</span>'; };
+  var S = [
+    { t: T("huge", "Hi Red Bull.") + T("small mute", "(Yes, there’s a wings joke coming. Stay with me.)") },
+    { t: T("big", "I’m Laura.") + T("mid", "Social media lead. Sydney.") + T("mid mute", "Canberra kid. (#2611pride)") },
+    { plane: 1, hold: .86, w: 3.4, t: T("big", "I heard you’re looking for a Social Media Manager.") },
+    { t: T("mid mute", "The short version of me:") + T("big", "I make content people actually choose to watch."),
+      img: [{ l: "label", html: '<div class="lblwrap"><span class="lbl">Social media lead<i></i></span><div class="chips"><b>Team lead</b><b>Instagram</b><b>TikTok</b><b>Launches</b><b>Community</b><b>Creators</b></div></div>' }] }
+  ];
+  S.push({ bubbles: phrases, hold: .86, w: 5.4, t: T("mid", "A good post is more than a post. It’s…") });
+  S.push(
+    { t: T("mid mute", "Your channels never feel like an ad break.") + T("huge", "They feel like <span class='ul'>the main event.</span>") },
+    { t: T("mid mute", "Why Red Bull?") + T("big", "I want to work for a brand that keeps <span class='ul'>surprising and delighting</span> people.") + T("small mute", "I’ve spent years inside one that does.") },
+    { t: T("mid", "I’ve led creative and marketing teams for a brand people are definitely talking about:") + T("big", '<img class="clogo" src="assets/canva-logo.png" alt="Canva">'),
+      img: [{ l: "Canva Create day", vid: "assets/canva-video.mp4" }] },
+    { t: T("mid mute", "One I helped make, and still love:") + T("big", "proof anything can be a Canva.") + T("small mute", "(Yes. That’s an egg on a photocopier.)"),
+      img: [{ l: "Egg on a photocopier", vid: "assets/canva-fun.mp4" }] }
+  );
+  var pad2 = function (n) { return String(n).padStart(2, "0"); };
+  S.push({ hold: .9, w: (jobs.length + 1) * .7, cards: [{ intro: 1 }].concat(jobs.map(function (j, i) {
+    return { n: pad2(i + 1) + " / " + pad2(jobs.length), t: j, dark: i % 2 === 1, vid: null };
+  })) });
+  S.push({ hold: .88, w: 5.4, venn: {
+    lead: "I’ve got hands-on experience in:",
+    items: [
+      { c: "Content", t: "Content", d: "Creating, commissioning and publishing organic content, with Instagram and TikTok at the centre." },
+      { c: "Community", t: "Community", d: "Building a highly engaged audience, and keeping it going day in, day out." },
+      { c: "Launches", t: "Launching to market", d: "Taking products and campaigns to market, from events to social-first stunts." }
+    ],
+    end: { t: "So I’d hit the ground running.", d: "Strategy on Monday. Posting by lunch." } } });
+  S.push(
+    { t: T("mid mute", "Some things I’ve made:") + T("big", "Squirrelites.") + T("small mute", "Fake Instagram accounts, real billboards and a press seed. US press pickup. Millions in reach."), img: [{ l: "Squirrelites", embed: "https://www.instagram.com/p/DX6urZelKwm/embed" }] },
+    { t: T("big", "Drag and Drop, with Trixie Mattel.") + T("small mute", "Concepted by me. 4M organic impressions."), img: [{ l: "Drag and Drop", embed: "https://www.instagram.com/p/DbbEF8iRDuO/embed" }] },
+    { t: T("big", "Canva Create.") + T("small mute", "Campaign management for a three phase, 5000+ person event. 50+ pieces of content and millions of impressions."),
+      img: [{ l: "Canva Create arch", vid: "assets/canva-create.mp4" }] },
+    { photo: { src: "assets/canva-la.jpg", ar: "3/4", rot: 1.3, alt: "Laura with a colleague at Canva Create in Los Angeles",
+        notes: NOTE("left:57%;top:5%;--r:2deg;--fs:6cqw", "on the ground<br>in LA at<br>Canva Create") + ARR("left:69.5%;top:29%", "down") } },
+    { t: T("mid mute", "Building a community, not just posting:") + T("huge", "0 → thousands") + T("small mute", "of UGC videos from a UGC program I helped launch, repurposed for ads.") },
+    { t: T("big", "Then there’s my own TikTok:") + T("mid", "18k followers in six months,"),
+      img: [{ l: "TikTok", tiktok: "https://www.tiktok.com/@lauragoeslow/video/7448910114016267550", id: "7448910114016267550" }] },
+    { t: T("mid", "which led to a mention in the Sydney Morning Herald."),
+      img: [{ l: "SMH", src: "assets/smh.jpg", alt: "The Sydney Morning Herald Instagram post: Could you buy nothing for a whole year? Laura Boyd is a self-described recovering shopaholic." }] },
+    { t: T("mid mute", "I’ve been on my own adventures.") + T("mid", "First stop: New York."), photo: { src: "assets/nyc-snow.jpg", ar: "3/4", rot: -1.4, alt: "Laura lying on a snowy park bench in New York, holding a coffee",
+      notes: NOTE("left:6%;top:85.5%;--r:-3deg;--fs:6.4cqw", "my 4 year<br>side quest in NYC", "dark") + ARR("left:47%;top:80.5%;transform:rotate(28deg)", "dark") } },
+    { t: T("mid mute", "Then magazine land:") + T("mid", "Social media strategy for magazines like Australian Women’s Weekly, Elle and Marie Claire."), photo: { src: "assets/are-media.jpg", ar: "3/4", rot: 1.2, alt: "Laura and two colleagues at a Marie Claire event for Are Media",
+      notes: ARR("left:61%;top:77.5%", "") + NOTE("left:44%;top:88.5%;--r:-2deg;--fs:5.6cqw", "that’s me,<br>working for the mags!") } },
+    { t: T("mid mute", "Now, big tech. And the next leg of the adventure?") + T("big", "Hopefully Red Bull.") },
+    { w: 1.3, last: 1, t: T("big", "So, can we talk?") +
+        '<p style="margin-top:3vh"><a class="mail" href="mailto:lauboyd@gmail.com">lauboyd@gmail.com</a></p>' +
+        '<p style="margin-top:3vh"><a class="btn" id="resume" href="https://drive.google.com/file/d/10FUxJzKucYGdbOoMwQRbyeQX9GuFZta2/view?usp=sharing" target="_blank" rel="noopener">See my resume <b>→</b></a></p>' }
+  );
+
+  var PLANE = '<svg class="plane" viewBox="0 0 1000 220" aria-label="A little plane pulling a banner that says let me give you wings!"><g class="bob"><g class="flap"><path d="M20 52 Q150 36 290 54 T600 50 L596 168 Q460 184 310 166 T24 172 Q10 112 20 52Z"/><path class="nf" d="M24 62 L50 112 L24 162"/><text x="318" y="132" text-anchor="middle">let me give you wings!</text></g><path class="nf" d="M600 62 Q620 100 646 120 M600 160 Q622 140 646 122"/><path d="M650 122 Q700 98 800 102 L900 108 Q950 112 956 126 Q950 142 900 144 L800 147 Q700 152 650 122Z"/><path d="M652 120 L628 80 L684 108Z"/><path d="M652 126 L640 150 L682 134Z"/><path d="M752 70 L884 64 L890 80 L758 88Z"/><path d="M764 152 L884 156 L888 170 L770 166Z"/><path class="nf" d="M790 88 L796 152 M860 82 L864 156"/><defs><clipPath id="hc"><rect x="770" y="20" width="130" height="86"/></clipPath></defs><image href="assets/head.png" x="784" y="30" width="84" height="77" clip-path="url(#hc)"/><path class="nf" d="M800 100 Q778 96 756 108 Q768 100 758 118"/><path d="M934 102 L960 104 L960 148 L934 146Z"/><g class="prop"><ellipse cx="964" cy="126" rx="5" ry="34"/></g><path class="nf" d="M826 148 L834 188 M860 150 L850 188"/><circle cx="842" cy="196" r="14"/><circle cx="842" cy="196" r="3"/></g></svg>';
+  var stage = document.getElementById("stage"), steps = [];
+  S.forEach(function (s) {
+    var el = document.createElement("div"); el.className = "step";
+    if (s.photo) {
+      var fig = '<figure class="photo" style="--ar:' + s.photo.ar + ';--rot:' + s.photo.rot + 'deg"><img src="' + s.photo.src + '" alt="' + s.photo.alt + '">' + s.photo.notes + "</figure>";
+      el.innerHTML = s.t ? '<div class="inner photo-beat has-img"><div class="txt">' + s.t + "</div>" + fig + "</div>" : '<div class="inner photo-beat">' + fig + "</div>";
+      stage.appendChild(el); steps.push(el); return;
+    }
+    if (s.plane) {
+      el.innerHTML = '<div class="inner"><div class="txt">' + s.t + '</div><div class="sky">' + PLANE + '</div></div>';
+      el._pl = el.querySelector(".plane");
+      stage.appendChild(el); steps.push(el); return;
+    }
+    if (s.venn) {
+      var V = s.venn, POSV = [["21%", "3%", "50%", "27%"], ["1%", "37%", "30%", "70%"], ["41%", "37%", "62%", "72%"]];
+      el.innerHTML = '<div class="inner vn"><div class="vtxt"><p class="mid mute">' + V.lead + '</p><div class="vlist">' +
+        V.items.concat([V.end]).map(function (it) { return '<div class="vi"><p class="t">' + it.t + '</p><p class="d">' + it.d + "</p></div>"; }).join("") +
+        '</div></div><div class="vd">' + V.items.map(function (it, i) {
+          var q = POSV[i]; return '<div class="vc" style="left:' + q[0] + ';top:' + q[1] + ';--lx:' + q[2] + ';--ly:' + q[3] + '"><span>' + it.c + "</span></div>";
+        }).join("") + '<div class="vme">me</div></div></div>';
+      el._vn = { circles: [].slice.call(el.querySelectorAll(".vc")), items: [].slice.call(el.querySelectorAll(".vi")), me: el.querySelector(".vme") };
+      stage.appendChild(el); steps.push(el); return;
+    }
+    if (s.cards) {
+      el.className = "step hsstep";
+      el.innerHTML = '<div class="hs"><div class="hs-track">' + s.cards.map(function (c) {
+        if (c.intro) return '<div class="hs-card intro"><p>Here’s the experience I bring:</p></div>';
+        var txt = '<p>' + c.t + '</p>', num = '<span class="n">' + c.n + '</span>';
+        var cls = "hs-card" + (c.dark ? " dark" : "") + (c.t.length > 90 ? " long" : "") + (c.vid ? " split" : "");
+        return c.vid ? '<div class="' + cls + '"><div class="col">' + num + txt + '</div><video src="' + c.vid + '" muted loop playsinline preload="metadata"></video></div>'
+                     : '<div class="' + cls + '">' + num + txt + '</div>';
+      }).join("") + '</div><div class="hs-bar"><i></i></div><div class="hs-count"></div></div>';
+      el._hs = { track: el.querySelector(".hs-track"), cards: [].slice.call(el.querySelectorAll(".hs-card:not(.intro)")), bar: el.querySelector(".hs-bar i"), count: el.querySelector(".hs-count"), max: 0 };
+      stage.appendChild(el); steps.push(el); return;
+    }
+    if (s.bubbles) {
+      var POS = [[3,6,-3],[50,2,2],[20,28,-1.5],[62,30,3],[1,50,2],[38,52,-2.5],[8,73,-2],[52,74,2.5]];
+      var MPOS = [[2,0],[24,12],[2,24],[24,36],[2,48],[24,60],[2,72],[24,84]];
+      el.innerHTML = '<div class="inner bubbles"><div class="txt">' + s.t + '</div><div class="bubarea">' + s.bubbles.map(function (b, i) {
+        var q = POS[i % POS.length], m = MPOS[i % MPOS.length];
+        return '<div class="bub' + (i % 3 === 1 ? " dark" : "") + '" style="--x:' + q[0] + '%;--y:' + q[1] + '%;--r:' + q[2] + 'deg;--mx:' + m[0] + '%;--my:' + m[1] + '%">' + b + "</div>";
+      }).join("") + "</div></div>";
+      el._bub = [].slice.call(el.querySelectorAll(".bub"));
+      stage.appendChild(el); steps.push(el); return;
+    }
+    var imgs = "";
+    if (s.img) {
+      imgs = '<div class="imgs' + (s.img.length > 2 ? " n3" : "") + '">' + s.img.map(function (m, i) {
+        if (m.tiktok) return '<figure class="art embed tt"><blockquote class="tiktok-embed" cite="' + m.tiktok + '" data-video-id="' + m.id + '"><section></section></blockquote><a class="ttl" href="' + m.tiktok + '" target="_blank" rel="noopener">Watch on TikTok ↗</a></figure>';
+        if (m.embed) return '<figure class="art embed"><iframe data-src="' + m.embed + '" title="' + m.l + ' embed" scrolling="no" allowtransparency="true" allow="encrypted-media" referrerpolicy="strict-origin-when-cross-origin"></iframe></figure>';
+        if (m.vid) return '<figure class="art tilt-' + (i ? "a" : "b") + '"><video src="' + m.vid + '" poster="' + m.vid.replace(".mp4", "-poster.jpg") + '" muted loop playsinline preload="auto"></video></figure>';
+        if (m.html) return '<figure class="art vis">' + m.html + "</figure>";
+        if (m.src) return '<figure class="art tilt-b' + (m.plain ? " plain" : "") + '"><img src="' + m.src + '" alt="' + (m.alt || m.l) + '">' + (m.credit ? "<figcaption>" + m.credit + "</figcaption>" : "") + "</figure>";
+        return '<div class="ph ' + (s.img.length === 1 ? "tilt-" + (i ? "a" : "b") : "") + '">' + "<span>[ " + m.l + " ]</span></div>";
+      }).join("") + "</div>";
+    }
+    var two = s.img && s.img.length < 3 && !s.stack;
+    if (!s.img) { el.dataset.side = (window._side = !window._side) ? "l" : "r"; }
+    el.innerHTML = '<div class="inner' + (two ? " has-img" : s.stack ? " stackimg" : "") + '"><div class="txt">' + s.t + "</div>" + (two || s.stack ? imgs : "") + "</div>";
+    if (s.img && s.img.length >= 3 && !s.stack) { el.querySelector(".inner").appendChild((function(){var d=document.createElement("div");d.innerHTML=imgs;return d.firstChild;})()); }
+    stage.appendChild(el); steps.push(el);
+  });
+
+  /* ---------- scroll mapping ---------- */
+  var unit, cum = [], ctr = [], hs = [], track = document.getElementById("track"), bar = document.getElementById("progress"), sign = document.getElementById("sign"), cur = 0, target = 0, pos = 0, N = S.length, VISIBLE = 2;
+  function layout() {
+    unit = innerHeight * .4; var t = 0; cum = [];
+    S.forEach(function (s) { cum.push(t); t += (s.w || 1) * unit; });
+    track.style.height = (t + innerHeight - unit * (S[N - 1].w || 1)) + "px";
+    // measure each beat so neighbours stack without overlapping, whatever their height
+    var gap = innerHeight * .06; ctr = []; hs = [];
+    steps.forEach(function (el, k) {
+      hs[k] = el.offsetHeight;
+      ctr[k] = k ? ctr[k - 1] + hs[k - 1] / 2 + gap + hs[k] / 2 : 0;
+      if (el._hs) el._hs.max = Math.max(0, el._hs.track.offsetWidth - innerWidth);
+    });
+  }
+  function scrollToPos() {
+    var y = scrollY, i = 0;
+    for (var k = 0; k < N; k++) if (y >= cum[k]) i = k;
+    var span = i < N - 1 ? cum[i + 1] - cum[i] : 1, f = Math.min(1, (y - cum[i]) / span), h = S[i].hold;
+    if (h) f = f < h ? 0 : (f - h) / (1 - h);   // dwell on this beat while its bubbles pop, then release
+    return Math.min(N - 1, i + f);
+  }
+  function render() {
+    var lo = Math.max(0, Math.min(N - 1, Math.floor(pos))), hi = Math.min(N - 1, lo + 1), f = pos - lo;
+    var y = ctr[lo] + (ctr[hi] - ctr[lo]) * f;
+    for (var k = 0; k < N; k++) {
+      var el = steps[k], d = k - pos, a = Math.abs(d);
+      if (a > VISIBLE + .01) { if (el.style.visibility !== "hidden") el.style.visibility = "hidden"; continue; }
+      var o = a <= 1 ? 1 - .72 * a : .28 - .2 * (a - 1);
+      el.style.visibility = "visible";
+      if (!el._framed) { el._framed = 1; var fr = el.querySelector("iframe[data-src]"); if (fr) fr.src = fr.getAttribute("data-src"); if (el.querySelector(".tiktok-embed") && !window._tt) { window._tt = 1; var sc = document.createElement("script"); sc.async = true; sc.src = "https://www.tiktok.com/embed.js"; document.body.appendChild(sc); } }
+      el.style.opacity = Math.max(0, o).toFixed(3);
+      el.style.transform = "translate3d(0," + (ctr[k] - y - hs[k] / 2).toFixed(1) + "px,0)" +
+        (reduce ? "" : " rotateX(" + (-d * 16).toFixed(2) + "deg) scale(" + (1 - a * .035).toFixed(3) + ")");
+      var on = a < .5;
+      if (on !== el.classList.contains("on")) {
+        el.classList.toggle("on", on);
+        var v = el.querySelector("video");
+        if (v) { if (on) { var pr = v.play(); if (pr && pr.catch) pr.catch(function () {}); } else v.pause(); }
+      }
+    }
+  }
+  function onScroll() {
+    var y = scrollY; target = scrollToPos(); cur = Math.round(target);
+    S.forEach(function (st, k) {
+      if (st.venn) {
+        var vv = steps[k]._vn, idx = -1;
+        if (y >= cum[k] - 1) idx = Math.min(3, Math.floor(Math.min(1, (y - cum[k]) / (st.w * unit) / st.hold) * 4));
+        vv.circles.forEach(function (c, i) { c.classList.toggle("in", idx >= 0 && (idx >= 3 || i <= idx)); c.classList.toggle("act", idx === i); });
+        vv.items.forEach(function (it, i) { it.classList.toggle("on", idx === i); });
+        vv.me.classList.toggle("on", idx === 3);
+        return;
+      }
+      if (st.cards) {
+        var h = steps[k]._hs, p = y < cum[k] - 1 ? 0 : Math.min(1, (y - cum[k]) / (st.w * unit) / st.hold), x = -p * h.max, best = 0, bd = 1e9;
+        h.track.style.transform = "translate3d(" + x.toFixed(1) + "px,0,0)";
+        h.bar.style.transform = "scaleX(" + p.toFixed(4) + ")";
+        h.cards.forEach(function (c, i) {
+          var d = (c.offsetLeft + c.offsetWidth / 2 + x - innerWidth / 2) / innerWidth;
+          c.style.transform = reduce ? "" : "rotate(" + (-d * 5).toFixed(2) + "deg) translateY(" + (Math.abs(d) * 16).toFixed(1) + "px)";
+          if (Math.abs(d) < bd) { bd = Math.abs(d); best = i; }
+        });
+        h.count.textContent = p > 0.02 ? pad2(best + 1) + " / " + pad2(h.cards.length) : "";
+        return;
+      }
+      if (st.plane) {
+        var pl = steps[k]._pl, pp = y < cum[k] - 1 ? 0 : Math.min(1, (y - cum[k]) / (st.w * unit) / st.hold), pw = pl.getBoundingClientRect().width;
+        pl.style.transform = "translate3d(" + (-pw + pp * (innerWidth + pw)).toFixed(1) + "px," + (Math.sin(pp * 6.28) * -8).toFixed(1) + "px,0)";
+        return;
+      }
+      if (!st.bubbles) return;
+      var n = st.bubbles.length, c = 0;
+      if (y >= cum[k] - 1) c = Math.min(n, Math.floor(Math.min(1, (y - cum[k]) / (st.w * unit) / st.hold) * n) + 1);
+      steps[k]._bub.forEach(function (b, i) { b.classList.toggle("in", i < c); });
+    });
+    var max = document.documentElement.scrollHeight - innerHeight;
+    bar.style.transform = "scaleX(" + (max > 0 ? y / max : 0) + ")";
+    sign.classList.toggle("gone", y > 30);
+  }
+  (function tick() {
+    pos += (target - pos) * (reduce ? 1 : .14);
+    if (Math.abs(target - pos) < .0005) pos = target;
+    render(); requestAnimationFrame(tick);
+  })();
+  layout(); onScroll(); pos = target;
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(layout);
+  addEventListener("load", function () { layout(); onScroll(); });
+  addEventListener("scroll", onScroll, { passive: true });
+  addEventListener("resize", function () { layout(); onScroll(); });
+  addEventListener("keydown", function (e) {
+    if (e.key === "ArrowDown" || e.key === "PageDown" || e.key === " ") { e.preventDefault(); scrollTo({ top: (cum[Math.min(cur + 1, cum.length - 1)] || 0) + 2, behavior: "smooth" }); }
+    if (e.key === "ArrowUp" || e.key === "PageUp") { e.preventDefault(); scrollTo({ top: (cum[Math.max(cur - 1, 0)] || 0) + 2, behavior: "smooth" }); }
+  });
+
+  /* resume link: put the real URL here */
+  document.getElementById("resume").addEventListener("click", function (e) { if (this.getAttribute("href") === "#") e.preventDefault(); });
+
+})();
+</script>
+</body>
+</html>
